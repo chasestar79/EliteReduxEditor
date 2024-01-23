@@ -32,7 +32,7 @@ namespace PokemonAbilityAndMoveEditor
         public Form1()
         {
             
-            debug = true;
+            debug = false;
             levelup = false;
             InitializeComponent();
             label2.Text = "Welcome";
@@ -302,6 +302,7 @@ namespace PokemonAbilityAndMoveEditor
                     }
                     line = sr.ReadLine();
                 }
+                sr.Close();
             }
             catch (Exception e)
             {
@@ -441,7 +442,25 @@ namespace PokemonAbilityAndMoveEditor
             }
             catch
             {
-                debugcon.AppendText("Error opening " + currentPokemon + "'s moves. Most likely a form without moves or with moves that don't differ from the original\n.");
+                try
+                {
+                    currentPokemon = (string)comboBox1.SelectedItem;
+                    currentPokemon = stripname(currentPokemon);
+                    List<String> prettyout = levelupmoves[currentPokemon].ConvertAll(x =>
+                    {
+                        string[] t = x.Split(',');
+                        string level = t[0];
+                        string move = t[1].Trim();
+                        return level + " " + movenames[moveenums.IndexOf(move)];
+                    }
+                           );
+                    comboBox8.DataSource = prettyout;
+                }
+                catch
+                {
+                    debugcon.AppendText("Error opening " + currentPokemon + "'s moves. Most likely a form without moves or with moves that don't differ from the original\n.");
+                }
+                
             }
             
         }
@@ -547,6 +566,7 @@ namespace PokemonAbilityAndMoveEditor
                         sw.WriteLine(sk);
                     }
                 }
+                debugcon.AppendText("Finished applying move changes.\n");
             }
         }
 
@@ -614,7 +634,7 @@ namespace PokemonAbilityAndMoveEditor
                     sw.WriteLine(sk);
                 }
             }
-
+            debugcon.AppendText("Finished applying ability changes.\n");
 
         }
 
@@ -702,6 +722,64 @@ namespace PokemonAbilityAndMoveEditor
         {
             int BST = int.Parse(spebox.Text.Trim()) + int.Parse(spdbox.Text.Trim()) + int.Parse(spabox.Text.Trim()) + int.Parse(defbox.Text.Trim()) + int.Parse(atkbox.Text.Trim()) + int.Parse(hpbox.Text.Trim());
             label7.Text = "BST = " + BST;
+
+        }
+
+        private void button12_Click(object sender, EventArgs e)
+        {
+            string[] tstats = new string[6];
+            tstats[0] = hpbox.Text;
+            tstats[1] = atkbox.Text;
+            tstats[2] = defbox.Text;
+            tstats[3] = spebox.Text;
+            tstats[4] = spabox.Text;
+            tstats[5] = spdbox.Text;
+            foreach(string t in tstats)
+            {
+                try
+                {
+                    int.Parse(t);
+                }
+                catch
+                {
+                    debugcon.AppendText("One of the stats in the stat boxes is not a number.");
+                    return;
+                }
+            }
+            string bspath = erpath + "\\src\\data\\pokemon\\base_stats.h";
+            List<String> basestatlines = new List<String>();
+            try
+            {
+                StreamReader sr = new StreamReader(bspath);
+                string line = sr.ReadLine();
+                while (line != null)
+                {
+                    basestatlines.Add(line);
+                    line = sr.ReadLine();
+                }
+                sr.Close();
+            }
+            catch
+            {
+                return;
+            }
+            string currentPokemon = (string)comboBox1.SelectedItem;
+            int i = pklines[currentPokemon];
+            i += 2;
+            basestatlines[i++] = "    .baseHP        = "+ tstats[0] +",";
+            basestatlines[i++] = "    .baseAttack    = " + tstats[1] + ",";
+            basestatlines[i++] = "    .baseDefense   = " + tstats[2] + ",";
+            basestatlines[i++] = "    .baseSpeed     = " + tstats[3] + ",";
+            basestatlines[i++] = "    .baseSpAttack  = " + tstats[4] + ",";
+            basestatlines[i++] = "    .baseSpDefense = " + tstats[5] + ",";
+            using (StreamWriter sw = new StreamWriter(bspath))
+            {
+                foreach (String sk in basestatlines)
+                {
+                    sw.WriteLine(sk);
+                }
+            }
+            debugcon.AppendText("Finished applying stats.\n");
 
         }
     }
