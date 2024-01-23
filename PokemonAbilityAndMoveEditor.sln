@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30907.101
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PokemonAbilityAndMoveEditor", "PokemonAbilityAndMoveEditor\PokemonAbilityAndMoveEditor.csproj", "{86D85E23-24E5-4081-AE34-425B6D962BA8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{86D85E23-24E5-4081-AE34-425B6D962BA8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{86D85E23-24E5-4081-AE34-425B6D962BA8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{86D85E23-24E5-4081-AE34-425B6D962BA8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{86D85E23-24E5-4081-AE34-425B6D962BA8}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {70330CF5-62AE-45E7-A747-99A141DF7FFD}
+	EndGlobalSection
+EndGlobal
