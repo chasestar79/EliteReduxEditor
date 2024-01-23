@@ -27,6 +27,7 @@ namespace PokemonAbilityAndMoveEditor
         public Dictionary<String, List<String>> levelupmoves;
         public Dictionary<String, List<String>> levelupchanges;
         bool levelup;
+        public Dictionary<String, String[]> stats;
 
         public Form1()
         {
@@ -35,6 +36,12 @@ namespace PokemonAbilityAndMoveEditor
             levelup = false;
             InitializeComponent();
             label2.Text = "Welcome";
+            HPBAR.Maximum = 255;
+            ATKBAR.Maximum = 255;
+            DEFBAR.Maximum = 255;
+            SPEBAR.Maximum = 255;
+            SPABAR.Maximum = 255;
+            SPDBAR.Maximum = 255;
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -72,6 +79,7 @@ namespace PokemonAbilityAndMoveEditor
                     basestatlines.Add(line);
                     line = sr.ReadLine();
                 }
+                sr.Close();
             }
             catch(Exception e)
             {
@@ -82,6 +90,7 @@ namespace PokemonAbilityAndMoveEditor
             pklines = new Dictionary<String, int>();
             abilities = new Dictionary<String, String[]>();
             innates = new Dictionary<String, String[]>();
+            stats = new Dictionary<String, String[]>();
             while (i < basestatlines.Count)
             {
                 if (basestatlines[i].Contains("SPECIES_") && !basestatlines[i].Contains("SPECIES_NONE"))
@@ -92,9 +101,18 @@ namespace PokemonAbilityAndMoveEditor
                         i++;
                         continue;
                     }
+                    String[] tstats = new string[6];
+                    for(int k = 0; k < 6; k++)
+                    {
+                        string temp = basestatlines[k + i + 2];
+                        int ik = temp.IndexOf('=');
+                        int jk = temp.IndexOf(',');
+                        tstats[k] = temp.Substring(ik + 1, jk - ik - 1);
+                    }
                     string name = l.Replace("[SPECIES_", "").Replace("]", "").Replace("=","").Trim().ToLower();
                     name = char.ToUpper(name[0]) + name.Substring(1);
                     Console.WriteLine("Processing: " + name);
+                    stats[name] = tstats;
                     pknames.Add(name);
                     pklines[name] = i;
                     int j = i;
@@ -155,9 +173,32 @@ namespace PokemonAbilityAndMoveEditor
             {
                 return;
             }
-            label2.Text = (string)comboBox1.SelectedItem;
+            label2.Text = stripname((string)comboBox1.SelectedItem);
             loadOriginalAbilities();
-            refreshLevelup();
+            if (!label2.Text.ToLower().Contains("mega") && !label2.Text.ToLower().Contains("_blade"))
+            {
+                refreshLevelup();
+            }
+            refreshStats();
+        }
+        public void refreshStats()
+        {
+            string currentPokemon = (string)comboBox1.SelectedItem;
+            String[] st = stats[currentPokemon];
+            hpbox.Text = st[0];
+            atkbox.Text = st[1];
+            defbox.Text = st[2];
+            spebox.Text = st[3];
+            spabox.Text = st[4];
+            spdbox.Text = st[5];
+            HPBAR.Value = int.Parse(st[0].Trim());
+            ATKBAR.Value = int.Parse(st[1].Trim());
+            DEFBAR.Value = int.Parse(st[2].Trim());
+            SPEBAR.Value = int.Parse(st[3].Trim());
+            SPABAR.Value = int.Parse(st[4].Trim());
+            SPDBAR.Value = int.Parse(st[5].Trim());
+            updateBST();
+
         }
         public void loadOriginalAbilities()
         {
@@ -386,15 +427,23 @@ namespace PokemonAbilityAndMoveEditor
             currentPokemon = searchname(currentPokemon);
             comboBox9.DataSource = movenames.ConvertAll(x => x);
             //comboBox8.DataSource = levelupmoves[currentPokemon].ConvertAll(x => x);
-            List<String> prettyout = levelupmoves[currentPokemon].ConvertAll(x =>
+            try
             {
-                string[] t = x.Split(',');
-                string level = t[0];
-                string move = t[1].Trim();
-                return level + " " + movenames[moveenums.IndexOf(move)];
+                List<String> prettyout = levelupmoves[currentPokemon].ConvertAll(x =>
+                {
+                    string[] t = x.Split(',');
+                    string level = t[0];
+                    string move = t[1].Trim();
+                    return level + " " + movenames[moveenums.IndexOf(move)];
+                }
+                            );
+                comboBox8.DataSource = prettyout;
             }
-            );
-            comboBox8.DataSource = prettyout;
+            catch
+            {
+                debugcon.AppendText("Error opening " + currentPokemon + "'s moves. Most likely a form without moves or with moves that don't differ from the original\n.");
+            }
+            
         }
 
         //remove move button
@@ -528,6 +577,131 @@ namespace PokemonAbilityAndMoveEditor
         //apply ability changes
         private void button9_Click(object sender, EventArgs e)
         {
+
+            string bspath = erpath + "\\src\\data\\pokemon\\base_stats.h";
+            List<String> basestatlines = new List<String>();
+            try
+            {
+                StreamReader sr = new StreamReader(bspath);
+                string line = sr.ReadLine();
+                while (line != null)
+                {
+                    basestatlines.Add(line);
+                    line = sr.ReadLine();
+                }
+                sr.Close();
+            }
+            catch
+            {
+                return;
+            }
+            string currentPokemon = (string) comboBox1.SelectedItem;
+            int i = 0;
+            while(!basestatlines[i].Contains(currentPokemon.ToUpper()))
+            {
+                i++;
+            }
+            while (!basestatlines[i].Contains(".abilities"))
+            {
+                i++;
+            }
+            basestatlines[i] = "\t.abilities = {" + abilityenums[comboBox2.SelectedIndex] + ", " + abilityenums[comboBox3.SelectedIndex] + ", " + abilityenums[comboBox4.SelectedIndex] + "},";
+            basestatlines[i+1] = "\t.innates = {" + abilityenums[comboBox5.SelectedIndex] + ", " + abilityenums[comboBox6.SelectedIndex] + ", " + abilityenums[comboBox7.SelectedIndex] + "},";
+            using (StreamWriter sw = new StreamWriter(bspath))
+            {
+                foreach (String sk in basestatlines)
+                {
+                    sw.WriteLine(sk);
+                }
+            }
+
+
+        }
+
+        private void textBox3_TextChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                ATKBAR.Value = int.Parse(atkbox.Text.Trim());
+                updateBST();
+            }
+            catch
+            {
+
+            }
+        }
+        
+        
+        private void hpbox_TextChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                HPBAR.Value = int.Parse(hpbox.Text.Trim());
+                updateBST();
+            }
+            catch
+            {
+
+            }
+            
+        }
+
+        private void defbox_TextChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                DEFBAR.Value = int.Parse(defbox.Text.Trim());
+                updateBST();
+            }
+            catch
+            {
+
+            }
+        }
+
+        private void spabox_TextChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                SPABAR.Value = int.Parse(spabox.Text.Trim());
+                updateBST();
+            }
+            catch
+            {
+
+            }
+        }
+
+        private void spdbox_TextChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                SPDBAR.Value = int.Parse(spdbox.Text.Trim());
+                updateBST();
+            }
+            catch
+            {
+
+            }
+        }
+
+        private void spebox_TextChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                SPEBAR.Value = int.Parse(spebox.Text.Trim());
+                updateBST();
+            }
+            catch
+            {
+
+            }
+        }
+
+        private void updateBST()
+        {
+            int BST = int.Parse(spebox.Text.Trim()) + int.Parse(spdbox.Text.Trim()) + int.Parse(spabox.Text.Trim()) + int.Parse(defbox.Text.Trim()) + int.Parse(atkbox.Text.Trim()) + int.Parse(hpbox.Text.Trim());
+            label7.Text = "BST = " + BST;
 
         }
     }
