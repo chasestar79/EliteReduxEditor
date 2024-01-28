@@ -28,8 +28,12 @@ namespace PokemonAbilityAndMoveEditor
         public Dictionary<String, List<(int level, string move)>> levelupmoves;
         public Dictionary<String, List<String>> levelupchanges;
         bool levelup;
+        bool egg;
+        bool tmhm;
+        bool tutor;
         public Dictionary<String, String[]> stats;
-
+        public Dictionary<String, String[]> types;
+        public readonly List<String> typenames = new List<String>() { "Grass", "Fire", "Water", "Electric", "Ghost", "Fighting", "Normal", "Dark", "Fairy", "Ground", "Rock", "Dragon", "Bug", "Poison", "Psychic", "Ice", "Flying", "Steel" };
         public Form1()
         {
 
@@ -43,6 +47,8 @@ namespace PokemonAbilityAndMoveEditor
             SPEBAR.Maximum = 255;
             SPABAR.Maximum = 255;
             SPDBAR.Maximum = 255;
+            type1.DataSource = typenames.ConvertAll(x => x);
+            type2.DataSource = typenames.ConvertAll(x => x);
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -92,6 +98,7 @@ namespace PokemonAbilityAndMoveEditor
             abilities = new Dictionary<String, String[]>();
             innates = new Dictionary<String, String[]>();
             stats = new Dictionary<String, String[]>();
+            types = new Dictionary<String, String[]>();
             while (i < basestatlines.Count)
             {
                 if (basestatlines[i].Contains("SPECIES_") && !basestatlines[i].Contains("SPECIES_NONE"))
@@ -103,17 +110,29 @@ namespace PokemonAbilityAndMoveEditor
                         continue;
                     }
                     String[] tstats = new string[6];
-                    for (int k = 0; k < 6; k++)
+                    String[] typess = new string[2];
+                    int kk = 0;
+                    for (int k = 0; k < 8; k++)
                     {
-                        string temp = basestatlines[k + i + 2];
-                        int ik = temp.IndexOf('=');
-                        int jk = temp.IndexOf(',');
-                        tstats[k] = temp.Substring(ik + 1, jk - ik - 1);
+                        if (k < 6)
+                        {
+                            string temp = basestatlines[k + i + 2];
+                            int ik = temp.IndexOf('=');
+                            int jk = temp.IndexOf(',');
+                            tstats[k] = temp.Substring(ik + 1, jk - ik - 1);
+                        }
+                        else
+                        {
+                            string temp = basestatlines[k + i + 2].Split('_')[1].Replace(',', ' ').Trim().ToLower();
+                            typess[kk++] = char.ToUpper(temp[0]) + temp.Substring(1);
+                        }
+
                     }
                     string name = l.Replace("[SPECIES_", "").Replace("]", "").Replace("=", "").Trim().ToLower();
                     name = char.ToUpper(name[0]) + name.Substring(1);
                     Console.WriteLine("Processing: " + name);
                     stats[name] = tstats;
+                    types[name] = typess;
                     pknames.Add(name);
                     pklines[name] = i;
                     int j = i;
@@ -176,7 +195,7 @@ namespace PokemonAbilityAndMoveEditor
             }
             label2.Text = stripname((string)comboBox1.SelectedItem);
             loadOriginalAbilities();
-            if (!label2.Text.ToLower().Contains("mega") && !label2.Text.ToLower().Contains("_blade"))
+            if (!label2.Text.ToLower().Contains("_mega") && !label2.Text.ToLower().Contains("_blade"))
             {
                 refreshLevelup();
             }
@@ -200,7 +219,11 @@ namespace PokemonAbilityAndMoveEditor
             SPDBAR.Value = int.Parse(st[5].Trim());
             updateBST();
 
+            type1.SelectedIndex = typenames.IndexOf(types[currentPokemon][0]);
+            Console.WriteLine(types[currentPokemon][0]);
+            type2.SelectedIndex = typenames.IndexOf(types[currentPokemon][1]);
         }
+
         public void loadOriginalAbilities()
         {
             string currentPokemon = (string)comboBox1.SelectedItem;
@@ -384,6 +407,25 @@ namespace PokemonAbilityAndMoveEditor
             {
                 Console.WriteLine(e.ToString());
             }
+            initEggs();
+        }
+        private void initEggs()
+        {
+            string movepath = erpath + "\\src\\data\\pokemon\\egg_moves.h";
+            List<String> mvlines = new List<String>();
+            try
+            {
+                StreamReader sr = new StreamReader(movepath);
+                string line = sr.ReadLine();
+                
+
+
+
+            }
+            catch
+            {
+                return;
+            }
         }
 
         //revert to default button
@@ -469,6 +511,10 @@ namespace PokemonAbilityAndMoveEditor
         //i want to die
         private void button10_Click(object sender, EventArgs e)
         {
+            if (((string)comboBox1.SelectedItem).ToLower().Contains("_mega"))
+            {
+                debugcon.AppendText("Currently selected mon is a mega form. Moves cannot be added.\n");
+            }
             if (levelup)
             {
                 string movepath = erpath + "\\src\\data\\pokemon\\level_up_learnsets.h";
@@ -571,6 +617,7 @@ namespace PokemonAbilityAndMoveEditor
                     sw.WriteLine(sk);
                 }
             }
+            //initData();
             debugcon.AppendText("Finished applying ability changes.\n");
 
         }
@@ -709,6 +756,8 @@ namespace PokemonAbilityAndMoveEditor
             basestatlines[i++] = "    .baseSpeed     = " + tstats[3] + ",";
             basestatlines[i++] = "    .baseSpAttack  = " + tstats[4] + ",";
             basestatlines[i++] = "    .baseSpDefense = " + tstats[5] + ",";
+            basestatlines[i++] = "    .type1 = TYPE_" + (type1.SelectedIndex != -1 ? typenames[type1.SelectedIndex].ToUpper() : types[currentPokemon][0].ToUpper()) + ",";
+            basestatlines[i++] = "    .type2 = TYPE_" + (type2.SelectedIndex != -1 ? typenames[type2.SelectedIndex].ToUpper() : types[currentPokemon][1].ToUpper()) + ",";
             using (StreamWriter sw = new StreamWriter(bspath))
             {
                 foreach (String sk in basestatlines)
@@ -717,6 +766,21 @@ namespace PokemonAbilityAndMoveEditor
                 }
             }
             debugcon.AppendText("Finished applying stats.\n");
+
+        }
+
+        private void falsifyBools()
+        {
+            egg = tutor = tmhm = levelup = false;
+        }
+
+        private void button13_Click(object sender, EventArgs e)
+        {
+            initData();
+        }
+
+        private void button6_Click(object sender, EventArgs e)
+        {
 
         }
     }
