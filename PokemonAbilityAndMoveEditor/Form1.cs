@@ -6,6 +6,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -24,14 +25,14 @@ namespace PokemonAbilityAndMoveEditor
         public List<String> abilityenums;
         public List<String> movenames;
         public List<String> moveenums;
-        public Dictionary<String, List<String>> levelupmoves;
+        public Dictionary<String, List<(int level, string move)>> levelupmoves;
         public Dictionary<String, List<String>> levelupchanges;
         bool levelup;
         public Dictionary<String, String[]> stats;
 
         public Form1()
         {
-            
+
             debug = false;
             levelup = false;
             InitializeComponent();
@@ -74,14 +75,14 @@ namespace PokemonAbilityAndMoveEditor
             {
                 StreamReader sr = new StreamReader(bspath);
                 string line = sr.ReadLine();
-                while(line != null)
+                while (line != null)
                 {
                     basestatlines.Add(line);
                     line = sr.ReadLine();
                 }
                 sr.Close();
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 Console.WriteLine("Cannot read base stats file");
             }
@@ -96,20 +97,20 @@ namespace PokemonAbilityAndMoveEditor
                 if (basestatlines[i].Contains("SPECIES_") && !basestatlines[i].Contains("SPECIES_NONE"))
                 {
                     string l = basestatlines[i];
-                    if(basestatlines[i + 5].Contains("= 0,")) //unfinished mon
+                    if (basestatlines[i + 5].Contains("= 0,")) //unfinished mon
                     {
                         i++;
                         continue;
                     }
                     String[] tstats = new string[6];
-                    for(int k = 0; k < 6; k++)
+                    for (int k = 0; k < 6; k++)
                     {
                         string temp = basestatlines[k + i + 2];
                         int ik = temp.IndexOf('=');
                         int jk = temp.IndexOf(',');
                         tstats[k] = temp.Substring(ik + 1, jk - ik - 1);
                     }
-                    string name = l.Replace("[SPECIES_", "").Replace("]", "").Replace("=","").Trim().ToLower();
+                    string name = l.Replace("[SPECIES_", "").Replace("]", "").Replace("=", "").Trim().ToLower();
                     name = char.ToUpper(name[0]) + name.Substring(1);
                     Console.WriteLine("Processing: " + name);
                     stats[name] = tstats;
@@ -121,21 +122,21 @@ namespace PokemonAbilityAndMoveEditor
                         j++;
                     }
                     string abs = basestatlines[j].Replace(',', ' ').Replace('{', ' ').Replace('}', ' ');
-                    string inn = basestatlines[j+1].Replace(',', ' ').Replace('{', ' ').Replace('}', ' ');
+                    string inn = basestatlines[j + 1].Replace(',', ' ').Replace('{', ' ').Replace('}', ' ');
                     j = 0;
                     //string[] sr = s.Split(' ');
                     string[] abss = abs.Split(' ');
                     string[] inns = inn.Split(' ');
                     string[] abies = new string[3];
                     string[] innies = new string[3];
-                    foreach(string sk in abss)
+                    foreach (string sk in abss)
                     {
                         if (sk.Contains("ABILITY"))
                         {
                             abies[j] = sk;
                             j++;
                         }
-                        if(j == 3)
+                        if (j == 3)
                         {
                             break;
                         }
@@ -169,7 +170,7 @@ namespace PokemonAbilityAndMoveEditor
         {
 
 
-            if(erpath == null || (comboBox1.SelectedIndex == -1))
+            if (erpath == null || (comboBox1.SelectedIndex == -1))
             {
                 return;
             }
@@ -202,7 +203,7 @@ namespace PokemonAbilityAndMoveEditor
         }
         public void loadOriginalAbilities()
         {
-            string currentPokemon = (string) comboBox1.SelectedItem;
+            string currentPokemon = (string)comboBox1.SelectedItem;
             string[] abs = abilities[currentPokemon];
             string[] inn = innates[currentPokemon];
 
@@ -224,7 +225,7 @@ namespace PokemonAbilityAndMoveEditor
             {
                 StreamReader sr = new StreamReader(abilitypath);
                 string line = sr.ReadLine();
-                
+
                 while (line != null)
                 {
                     if (line.Contains("gAbilityNames"))
@@ -247,7 +248,7 @@ namespace PokemonAbilityAndMoveEditor
                 Console.WriteLine("Cannot read base stats file");
             }
             f = false;
-            foreach(string sk in ablines)
+            foreach (string sk in ablines)
             {
                 if (sk.Contains("ABILITY_NONE"))
                 {
@@ -315,7 +316,7 @@ namespace PokemonAbilityAndMoveEditor
                 {
                     f = true;
                 }
-                if(!sk.Contains("[") || !sk.Contains("\""))
+                if (!sk.Contains("[") || !sk.Contains("\""))
                 {
                     continue;
                 }
@@ -333,14 +334,15 @@ namespace PokemonAbilityAndMoveEditor
             comboBox9.DataSource = movenames.ConvertAll(x => x);
             movepath = erpath + "\\src\\data\\pokemon\\level_up_learnsets.h";
             mvlines = new List<String>();
+            Regex levelupStart = new Regex(@"static const struct LevelUpMove s(\w+)LevelUpLearnset\[\] = \{");
+            Regex levelupMove = new Regex(@"LEVEL_UP_MOVE\(\s*(\d+),\s*(\w+)\s*\),");
             try
             {
                 StreamReader sr = new StreamReader(movepath);
-                string line = sr.ReadLine();
-                string currentPokemon = "";
-                levelupmoves = new Dictionary<String, List<String>>();
+                levelupmoves = new Dictionary<String, List<(int, string)>>();
                 bool skip = false;
-                while (line != null)
+                string currentPokemon = "";
+                for (string line = sr.ReadLine(); line != null; line = sr.ReadLine())
                 {
                     if (line.Contains("/*"))
                     {
@@ -355,42 +357,26 @@ namespace PokemonAbilityAndMoveEditor
                         line = sr.ReadLine();
                         continue;
                     }
-                    if(line.Contains("static const struct"))
+                    Match levelupStartMatch = levelupStart.Match(line);
+                    if (levelupStartMatch.Success)
                     {
-                        string[] st = line.Split(' ');
-                        foreach (string sk in st)
-                        {
-                            if (sk.EndsWith("[]"))
-                            {
-                                int i = sk.IndexOf("LevelUp");
-                                currentPokemon = sk.Substring(1, i - 1);
-                                levelupmoves[currentPokemon] = new List<String>();
-                            }
-                        }
-                    }
-                    if (line.Contains("LEVEL_UP_MOVE") && !line.Contains(".level") && !line.Trim().StartsWith("//"))
-                    {
-                        try
-                        {
-                            int i = line.IndexOf('(');
-                            int j = line.IndexOf(')');
-                            List<String> temp = levelupmoves[currentPokemon];
-                            temp.Add(line.Substring(i + 1, j - i - 1));
-                            levelupmoves[currentPokemon] = temp;
-                            //Console.WriteLine(s.Substring(i + 1, j - i - 1));
-                        }
-                        catch(Exception e)
-                        {
-                            Console.WriteLine(line);
-                            Console.WriteLine(e.ToString());
-                        }
-
-
+                        currentPokemon = searchname(levelupStartMatch.Groups[1].Value);
+                        levelupmoves[currentPokemon] = new List<(int, string)>();
+                        continue;
                     }
 
-
-
-                    line = sr.ReadLine();
+                    Match levelupMoveMatch = levelupMove.Match(line);
+                    if (levelupMoveMatch.Success)
+                    {
+						if (int.TryParse(levelupMoveMatch.Groups[1].Value, out int level))
+                        {
+                            levelupmoves[currentPokemon].Add((level, levelupMoveMatch.Groups[2].Value));
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Failed parsing line {line}");
+                        }
+                    }
                 }
                 sr.Close();
             }
@@ -398,12 +384,6 @@ namespace PokemonAbilityAndMoveEditor
             {
                 Console.WriteLine(e.ToString());
             }
-            
-
-
-
-
-
         }
 
         //revert to default button
@@ -430,14 +410,7 @@ namespace PokemonAbilityAndMoveEditor
             //comboBox8.DataSource = levelupmoves[currentPokemon].ConvertAll(x => x);
             try
             {
-                List<String> prettyout = levelupmoves[currentPokemon].ConvertAll(x =>
-                {
-                    string[] t = x.Split(',');
-                    string level = t[0];
-                    string move = t[1].Trim();
-                    return level + " " + movenames[moveenums.IndexOf(move)];
-                }
-                            );
+                List<String> prettyout = levelupmoves[currentPokemon].ConvertAll(x => x.level + " " + movenames[moveenums.IndexOf(x.move)]);
                 comboBox8.DataSource = prettyout;
             }
             catch
@@ -445,42 +418,33 @@ namespace PokemonAbilityAndMoveEditor
                 try
                 {
                     currentPokemon = (string)comboBox1.SelectedItem;
-                    currentPokemon = stripname(currentPokemon);
-                    List<String> prettyout = levelupmoves[currentPokemon].ConvertAll(x =>
-                    {
-                        string[] t = x.Split(',');
-                        string level = t[0];
-                        string move = t[1].Trim();
-                        return level + " " + movenames[moveenums.IndexOf(move)];
-                    }
-                           );
+                    currentPokemon = searchname(currentPokemon);
+                    List<String> prettyout = levelupmoves[currentPokemon].ConvertAll(x => x.level + " " + movenames[moveenums.IndexOf(x.move)]);
                     comboBox8.DataSource = prettyout;
                 }
                 catch
                 {
-                    debugcon.AppendText("Error opening " + currentPokemon + "'s moves. Most likely a form without moves or with moves that don't differ from the original\n.");
+                    debugcon.AppendText($"Error opening {currentPokemon}'s moves. Most likely a form without moves or with moves that don't differ from the original\n.");
                 }
-                
+
             }
-            
+
         }
 
         //remove move button
         private void button4_Click(object sender, EventArgs e)
         {
-            if (erpath == null || (comboBox1.SelectedIndex == -1) || comboBox8.SelectedIndex == - 1)
+            if (erpath == null || (comboBox1.SelectedIndex == -1) || comboBox8.SelectedIndex == -1)
             {
                 return;
             }
             if (levelup)
             {
-                string currentPokemon = (string)comboBox1.SelectedItem;
-                List<String> temp = levelupmoves[currentPokemon];
-                temp.RemoveAt(comboBox8.SelectedIndex);
-                levelupmoves[currentPokemon] = temp;
+                string currentPokemon = searchname((string)comboBox1.SelectedItem);
+                levelupmoves[currentPokemon].RemoveAt(comboBox8.SelectedIndex);
                 refreshLevelup();
             }
-            
+
         }
         //add move button
         private void button3_Click(object sender, EventArgs e)
@@ -489,21 +453,10 @@ namespace PokemonAbilityAndMoveEditor
             {
                 return;
             }
-            if(levelup)
+            if (levelup && int.TryParse(textBox1.Text, out int lvl))
             {
-                int lvl = 0;
-                try
-                {
-                    lvl = int.Parse(textBox1.Text);
-                }
-                catch
-                {
-                    return;
-                }
-                string currentPokemon = (string)comboBox1.SelectedItem;
-                List<String> temp = levelupmoves[currentPokemon];
-                temp.Add(lvl + ", " + moveenums[comboBox9.SelectedIndex]);
-                levelupmoves[currentPokemon] = temp;
+                string currentPokemon = searchname((string)comboBox1.SelectedItem);
+                levelupmoves[currentPokemon].Add((lvl, moveenums[comboBox9.SelectedIndex]));
                 refreshLevelup();
             }
 
@@ -540,25 +493,16 @@ namespace PokemonAbilityAndMoveEditor
                     i++;
                 }
                 int endbracket = i;
-                while(start != endbracket - 1)
+                while (start != endbracket - 1)
                 {
                     mvlines.RemoveAt(start + 1);
                     endbracket--;
                 }
                 sr.Close();
-                List<String> mvs = levelupmoves[currentPokemon];
-                mvs.Sort((String x, String y) =>
-                {
-                    string[] xt = x.Split(',');
-                    string[] yt = y.Split(',');
-
-                    return int.Parse(yt[0]) - int.Parse(xt[0]);
-                }
-                );
-                foreach(String sk in mvs)
-                {
-                    mvlines.Insert(start + 1, "\tLEVEL_UP_MOVE(" + sk + "),");
-                }
+                var mvs = levelupmoves[searchname(currentPokemon)];
+                mvs.OrderByDescending(x => x.level);
+                mvlines.Insert(start + 1, "\tLEVEL_UP_END");
+                mvlines.InsertRange(start + 1, mvs.Select(x => $"\tLEVEL_UP_MOVE({x.level}, {x.move}),"));
                 using (StreamWriter sw = new StreamWriter(movepath))
                 {
                     foreach (String sk in mvlines)
@@ -573,24 +517,17 @@ namespace PokemonAbilityAndMoveEditor
         private String stripname(String s)
         {
             string[] st = s.Split('_');
-            for(int i = 0; i < st.Length; i++)
-            {
-                string name = st[i];
-                name = char.ToUpper(name[0]) + name.Substring(1);
-                st[i] = name;
-            }
-            return String.Join("",st);
-        }
-        private String searchname(String s)
-        {
-            string[] st = s.Split('_');
             for (int i = 0; i < st.Length; i++)
             {
                 string name = st[i];
                 name = char.ToUpper(name[0]) + name.Substring(1);
                 st[i] = name;
             }
-            return String.Join("_", st);
+            return String.Join("", st);
+        }
+        private String searchname(String s)
+        {
+            return s.ToLower().Replace("_", "");
         }
 
 
@@ -615,9 +552,9 @@ namespace PokemonAbilityAndMoveEditor
             {
                 return;
             }
-            string currentPokemon = (string) comboBox1.SelectedItem;
+            string currentPokemon = (string)comboBox1.SelectedItem;
             int i = 0;
-            while(!basestatlines[i].Contains(currentPokemon.ToUpper()))
+            while (!basestatlines[i].Contains(currentPokemon.ToUpper()))
             {
                 i++;
             }
@@ -626,7 +563,7 @@ namespace PokemonAbilityAndMoveEditor
                 i++;
             }
             basestatlines[i] = "\t.abilities = {" + abilityenums[comboBox2.SelectedIndex] + ", " + abilityenums[comboBox3.SelectedIndex] + ", " + abilityenums[comboBox4.SelectedIndex] + "},";
-            basestatlines[i+1] = "\t.innates = {" + abilityenums[comboBox5.SelectedIndex] + ", " + abilityenums[comboBox6.SelectedIndex] + ", " + abilityenums[comboBox7.SelectedIndex] + "},";
+            basestatlines[i + 1] = "\t.innates = {" + abilityenums[comboBox5.SelectedIndex] + ", " + abilityenums[comboBox6.SelectedIndex] + ", " + abilityenums[comboBox7.SelectedIndex] + "},";
             using (StreamWriter sw = new StreamWriter(bspath))
             {
                 foreach (String sk in basestatlines)
@@ -650,8 +587,8 @@ namespace PokemonAbilityAndMoveEditor
 
             }
         }
-        
-        
+
+
         private void hpbox_TextChanged(object sender, EventArgs e)
         {
             try
@@ -663,7 +600,7 @@ namespace PokemonAbilityAndMoveEditor
             {
 
             }
-            
+
         }
 
         private void defbox_TextChanged(object sender, EventArgs e)
@@ -734,7 +671,7 @@ namespace PokemonAbilityAndMoveEditor
             tstats[3] = spebox.Text;
             tstats[4] = spabox.Text;
             tstats[5] = spdbox.Text;
-            foreach(string t in tstats)
+            foreach (string t in tstats)
             {
                 try
                 {
@@ -766,7 +703,7 @@ namespace PokemonAbilityAndMoveEditor
             string currentPokemon = (string)comboBox1.SelectedItem;
             int i = pklines[currentPokemon];
             i += 2;
-            basestatlines[i++] = "    .baseHP        = "+ tstats[0] +",";
+            basestatlines[i++] = "    .baseHP        = " + tstats[0] + ",";
             basestatlines[i++] = "    .baseAttack    = " + tstats[1] + ",";
             basestatlines[i++] = "    .baseDefense   = " + tstats[2] + ",";
             basestatlines[i++] = "    .baseSpeed     = " + tstats[3] + ",";
