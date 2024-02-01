@@ -34,10 +34,11 @@ namespace PokemonAbilityAndMoveEditor
         public Dictionary<String, String[]> stats;
         public Dictionary<String, String[]> types;
         public readonly List<String> typenames = new List<String>() { "Grass", "Fire", "Water", "Electric", "Ghost", "Fighting", "Normal", "Dark", "Fairy", "Ground", "Rock", "Dragon", "Bug", "Poison", "Psychic", "Ice", "Flying", "Steel" };
+        public Dictionary<String, List<String>> eggs;
         public Form1()
         {
 
-            debug = false;
+            debug = true;
             levelup = false;
             InitializeComponent();
             label2.Text = "Welcome";
@@ -187,7 +188,7 @@ namespace PokemonAbilityAndMoveEditor
         //combobox 5,6,7 are innates
         private void button2_Click(object sender, EventArgs e)
         {
-
+            falsifyBools();
 
             if (erpath == null || (comboBox1.SelectedIndex == -1))
             {
@@ -220,7 +221,7 @@ namespace PokemonAbilityAndMoveEditor
             updateBST();
 
             type1.SelectedIndex = typenames.IndexOf(types[currentPokemon][0]);
-            Console.WriteLine(types[currentPokemon][0]);
+            //Console.WriteLine(types[currentPokemon][0]);
             type2.SelectedIndex = typenames.IndexOf(types[currentPokemon][1]);
         }
 
@@ -413,11 +414,35 @@ namespace PokemonAbilityAndMoveEditor
         {
             string movepath = erpath + "\\src\\data\\pokemon\\egg_moves.h";
             List<String> mvlines = new List<String>();
+            eggs = new Dictionary<String, List<String>>();
             try
             {
                 StreamReader sr = new StreamReader(movepath);
                 string line = sr.ReadLine();
-                
+                List<String> eggmvs = new List<String>();
+                string pkn = "";
+                while(line != null)
+                {
+                    if (line.Contains("egg_moves"))
+                    {
+                        int i = line.IndexOf('(');
+                        int j = line.IndexOf(',');
+                        pkn = line.Substring(i + 1, j - i - 1).Trim();
+                        eggmvs = new List<string>();
+                    }
+                    if (line.Contains("MOVE_"))
+                    {
+                        string move = line.Trim();
+                        move = move.Split(',', ')')[0];
+                        eggmvs.Add(move);
+                    }
+                    if (line.Contains("),"))
+                    {
+                        eggs[pkn] = eggmvs;
+                    }
+                    line = sr.ReadLine();
+                }
+               
 
 
 
@@ -437,6 +462,8 @@ namespace PokemonAbilityAndMoveEditor
         //levelup learnset moves button
         private void button5_Click(object sender, EventArgs e)
         {
+            falsifyBools();
+            levelup = true;
             if (erpath == null || (comboBox1.SelectedIndex == -1))
             {
                 return;
@@ -472,6 +499,19 @@ namespace PokemonAbilityAndMoveEditor
             }
 
         }
+        public void refreshEggs()
+        {
+            string currentPokemon = searchname(stripname((string)comboBox1.SelectedItem)).ToUpper();
+            try
+            {
+                List<String> eggmoves = eggs[currentPokemon].ConvertAll(x => movenames[moveenums.IndexOf(x)]);
+                comboBox8.DataSource = eggmoves;
+            }
+            catch
+            {
+                debugcon.AppendText("This pokemon does not have egg moves\n");
+            }
+        }
 
         //remove move button
         private void button4_Click(object sender, EventArgs e)
@@ -485,6 +525,12 @@ namespace PokemonAbilityAndMoveEditor
                 string currentPokemon = searchname((string)comboBox1.SelectedItem);
                 levelupmoves[currentPokemon].RemoveAt(comboBox8.SelectedIndex);
                 refreshLevelup();
+            }
+            if (egg)
+            {
+                string currentPokemon = searchname((string)comboBox1.SelectedItem).ToUpper();
+                eggs[currentPokemon].RemoveAt(comboBox8.SelectedIndex);
+                refreshEggs();
             }
 
         }
@@ -500,6 +546,12 @@ namespace PokemonAbilityAndMoveEditor
                 string currentPokemon = searchname((string)comboBox1.SelectedItem);
                 levelupmoves[currentPokemon].Add((lvl, moveenums[comboBox9.SelectedIndex]));
                 refreshLevelup();
+            }
+            if (egg)
+            {
+                string currentPokemon = searchname((string)comboBox1.SelectedItem).ToUpper();
+                eggs[currentPokemon].Add(moveenums[comboBox9.SelectedIndex]);
+                refreshEggs();
             }
 
 
@@ -556,7 +608,65 @@ namespace PokemonAbilityAndMoveEditor
                         sw.WriteLine(sk);
                     }
                 }
-                debugcon.AppendText("Finished applying move changes.\n");
+                debugcon.AppendText("Finished applying levelup move changes.\n");
+            }
+            if (egg)
+            {
+                string movepath = erpath + "\\src\\data\\pokemon\\egg_moves.h";
+                List<String> mvlines = new List<String>();
+                StreamReader sr = new StreamReader(movepath);
+                string line = sr.ReadLine();
+                while (line != null)
+                {
+                    mvlines.Add(line);
+                    line = sr.ReadLine();
+                }
+                sr.Close();
+                string currentPokemon = searchname((string)comboBox1.SelectedItem).ToUpper();
+                int i = 0;
+                List<String> egmvs = eggs[currentPokemon];
+                foreach(String s in mvlines)
+                {
+                    if (s.Contains(currentPokemon))
+                    {
+                        break;
+                    }
+                    i++;
+                }
+                int j;
+                for(j = i; j < mvlines.Count; j++)
+                {
+                    if (mvlines[j].Contains("),"))
+                    {
+                        break;
+                    }
+                }
+                while(j != i)
+                {
+                    mvlines.RemoveAt(j);
+                    j--;
+                }
+                for(int k = egmvs.Count - 1; k >= 0; k--)
+                {
+                    if(k == egmvs.Count - 1)
+                    {
+                        mvlines.Insert(i + 1, "\t\t" + egmvs[k] + "),");
+                    }
+                    else
+                    {
+                        mvlines.Insert(i + 1, "\t\t" + egmvs[k] + ",");
+                    }
+                    
+                }
+                using (StreamWriter sw = new StreamWriter(movepath))
+                {
+                    foreach (String sk in mvlines)
+                    {
+                        sw.WriteLine(sk);
+                    }
+                    sw.Close();
+                }
+                debugcon.AppendText("Finished applying egg move changes.\n");
             }
         }
 
@@ -781,7 +891,11 @@ namespace PokemonAbilityAndMoveEditor
 
         private void button6_Click(object sender, EventArgs e)
         {
-
+            falsifyBools();
+            egg = true;
+            refreshEggs();
+            
+            
         }
     }
 }
