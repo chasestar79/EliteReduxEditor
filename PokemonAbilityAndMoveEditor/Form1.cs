@@ -38,7 +38,7 @@ namespace PokemonAbilityAndMoveEditor
         public Form1()
         {
 
-            debug = true;
+            debug = false;
             levelup = false;
             InitializeComponent();
             label2.Text = "Welcome";
@@ -545,6 +545,7 @@ namespace PokemonAbilityAndMoveEditor
             {
                 string currentPokemon = searchname((string)comboBox1.SelectedItem);
                 levelupmoves[currentPokemon].Add((lvl, moveenums[comboBox9.SelectedIndex]));
+                levelupmoves[currentPokemon].Sort();
                 refreshLevelup();
             }
             if (egg)
